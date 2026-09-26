@@ -1,0 +1,14 @@
+{
+  "name": "@session-broker/server",
+  "version": "0.1.0",
+  "description": "Servidor durable del session broker: transporte WS único, autorización por grants, controlEpoch, store SQLite propio y journal acotado.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@session-broker/protocol": "workspace:*"
+  },
+  "devDependencies": {}
+}

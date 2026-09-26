@@ -1,0 +1,19 @@
+{
+  "name": "consumer-smoke",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@session-broker/protocol": "file:../vendor/session-broker-protocol-0.1.0.tgz",
+    "@session-broker/client": "file:../vendor/session-broker-client-0.1.0.tgz",
+    "@session-broker/omp-adapter": "file:../vendor/session-broker-omp-adapter-0.1.0.tgz",
+    "@session-broker/cli": "file:../vendor/session-broker-cli-0.1.0.tgz",
+    "@session-broker/server": "file:../vendor/session-broker-server-0.1.0.tgz"
+  },
+  "overrides": {
+    "@session-broker/protocol": "file:../vendor/session-broker-protocol-0.1.0.tgz",
+    "@session-broker/client": "file:../vendor/session-broker-client-0.1.0.tgz",
+    "@session-broker/omp-adapter": "file:../vendor/session-broker-omp-adapter-0.1.0.tgz",
+    "@session-broker/cli": "file:../vendor/session-broker-cli-0.1.0.tgz",
+    "@session-broker/server": "file:../vendor/session-broker-server-0.1.0.tgz"
+  }
+}

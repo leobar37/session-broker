@@ -1,0 +1,29 @@
+# Ejemplo de unidad systemd USER del session broker (artefacto OPT-IN).
+#
+# Generado por `renderSystemdUserUnit` de `@session-broker/cli` (ver
+# `docs/operations`). Sustituye las rutas /ABSOLUTE/PATH/... por las tuyas.
+#
+# ADVERTENCIA DE GATE: activar este servicio (copiarlo a
+# ~/.config/systemd/user, habilitarlo y arrancarlo) requiere autorización
+# explícita del operador (gate G-BROKER-SERVICE). Generar o leer este archivo
+# NO constituye autorización ni instala nada. Sin lingering: la unidad corre
+# dentro de una sesión de usuario activa.
+
+[Unit]
+Description=session-broker: broker durable (servicio user OPT-IN; activación manual tras gate G-BROKER-SERVICE)
+After=default.target
+
+[Service]
+Type=exec
+WorkingDirectory="/ABSOLUTE/PATH/session-broker"
+ExecStart="/usr/bin/env" "bun" "/ABSOLUTE/PATH/session-broker/apps/broker/src/serve.ts"
+# Config explícita: el data dir vive FUERA de worktrees.
+Environment=SESSION_BROKER_DATA_DIR="/ABSOLUTE/PATH/.local/share/session-broker"
+# Secretos SOLO en el EnvironmentFile con permisos 600: jamás aquí.
+EnvironmentFile=-"/ABSOLUTE/PATH/.config/session-broker/broker.env"
+# Restart aplica SOLO al proceso del broker (esta unidad, este proceso).
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

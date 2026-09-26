@@ -1,0 +1,15 @@
+{
+  "name": "@session-broker/omp-adapter",
+  "version": "0.1.0",
+  "description": "Adaptador OMP nativo del session broker: puertos estructurales de la API OMP, root binding no heredable, entrega when_idle de asks y herramienta explícita session_reply, sin sustituir la TUI.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@session-broker/protocol": "workspace:*",
+    "@session-broker/client": "workspace:*"
+  },
+  "devDependencies": {}
+}

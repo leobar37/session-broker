@@ -1,0 +1,15 @@
+{
+  "name": "@session-broker/cli",
+  "version": "0.1.0",
+  "description": "CLI del session broker: init idempotente de identidad, resolución de configuración de usuario y comandos de lectura/envío/control sobre @session-broker/client.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@session-broker/protocol": "workspace:*",
+    "@session-broker/client": "workspace:*"
+  },
+  "devDependencies": {}
+}

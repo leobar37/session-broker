@@ -1,0 +1,36 @@
+{
+  "schema": "omp-session-broker-evidence-consumer/1",
+  "producedBy": "bun test tests/handoff/consumer.test.ts",
+  "note": "Bloque \"consumer\" REAL observado por la suite del consumidor. Fusión: copiar el objeto \"consumer\" literalmente al campo \"consumer\" del evidence input de build-handoff.ts. Excluido del source hash (docs/handoff/**). smokeExitCode/relocationExitCode son los exit codes REALES de los dos smoke del consumidor (snapshot inicial y relocalización); equivalen a que bun test tests/handoff/consumer.test.ts termine en 0.",
+  "consumer": {
+    "smokeExitCode": 0,
+    "relocationExitCode": 0,
+    "vendorArtifacts": [
+      {
+        "file": "session-broker-protocol-0.1.0.tgz",
+        "sha256": "a8489268f2d762a21542088cc954269902b81e0c7f8dad04ec2860bafb1eb53d",
+        "bytes": 30783
+      },
+      {
+        "file": "session-broker-client-0.1.0.tgz",
+        "sha256": "37f63f78f4911b5e70dba76db81a2a585e12b293d46c1817b970d2e413d654e6",
+        "bytes": 9587
+      },
+      {
+        "file": "session-broker-server-0.1.0.tgz",
+        "sha256": "c9619902e6685de03c48a70edc194b230561f0aa18aae789fbe9da3ab22c89b0",
+        "bytes": 40107
+      },
+      {
+        "file": "session-broker-cli-0.1.0.tgz",
+        "sha256": "90d963ab009672031af6ad690d535eafefdcfdc23a9748e5ce2b0cff17cd8949",
+        "bytes": 16523
+      },
+      {
+        "file": "session-broker-omp-adapter-0.1.0.tgz",
+        "sha256": "3a9039a33859ee3d2bab4b50ba4caca0ac64e9f619918311a151b787d5cf43c2",
+        "bytes": 19185
+      }
+    ]
+  }
+}

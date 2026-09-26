@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>omp-session-broker · Cómo funciona</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .svg-label { font-size: 12px; font-weight: 600; }
+  .svg-sub { font-size: 10.5px; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+<div class="max-w-6xl mx-auto px-5 py-10 space-y-14">
+
+  <!-- ══════════ HEADER ══════════ -->
+  <header class="space-y-3">
+    <div class="flex flex-wrap items-center gap-3">
+      <h1 class="text-3xl font-bold tracking-tight">omp-session-broker</h1>
+      <span class="text-xs font-mono px-2 py-1 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30">protocolo 1.0.0</span>
+      <span class="text-xs font-mono px-2 py-1 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">bun run verify · exit 0</span>
+      <span class="text-xs font-mono px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">Bun + TypeScript + SQLite</span>
+    </div>
+    <p class="text-slate-400 max-w-3xl">Broker de sesiones standalone: coordina sesiones OMP entre sí con autenticación por grants, dedup durable y recovery honesto — sin ejecutar inferencia ni sustituir la TUI nativa.</p>
+  </header>
+
+  <!-- ══════════ 1 · ARQUITECTURA ══════════ -->
+  <section class="space-y-4">
+    <div class="flex items-baseline gap-3">
+      <span class="text-sky-400 font-mono text-sm">01</span>
+      <h2 class="text-xl font-semibold">Arquitectura general</h2>
+    </div>
+    <p class="text-sm text-slate-400">Cinco paquetes con fronteras congeladas. El broker es un proceso único con SQLite; los clientes se conectan outbound por WebSocket; el adaptador vive <em>dentro</em> de cada sesión OMP y conserva su TUI.</p>
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 overflow-x-auto">
+    <svg viewBox="0 0 960 570" class="w-full min-w-[820px]" role="img" aria-label="Diagrama de arquitectura del broker">
+      <!-- capa de paquetes -->
+      <g font-family="ui-sans-serif">
+        <text x="20" y="26" class="svg-sub" fill="#94a3b8">PAQUETES (contratos congelados)</text>
+        <g>
+          <rect x="20" y="38" width="170" height="54" rx="8" fill="#1e293b" stroke="#475569"/>
+          <text x="105" y="60" text-anchor="middle" class="svg-label" fill="#e2e8f0">@session-broker/protocol</text>
+          <text x="105" y="78" text-anchor="middle" class="svg-sub" fill="#94a3b8">contratos · estados · límites</text>
+        </g>
+        <g>
+          <rect x="205" y="38" width="150" height="54" rx="8" fill="#0c2a33" stroke="#155e75"/>
+          <text x="280" y="60" text-anchor="middle" class="svg-label" fill="#7dd3fc">client</text>
+          <text x="280" y="78" text-anchor="middle" class="svg-sub" fill="#94a3b8">WS outbound · reconexión</text>
+        </g>
+        <g>
+          <rect x="370" y="38" width="160" height="54" rx="8" fill="#17132e" stroke="#6d28d9"/>
+          <text x="450" y="60" text-anchor="middle" class="svg-label" fill="#c4b5fd">omp-adapter</text>
+          <text x="450" y="78" text-anchor="middle" class="svg-sub" fill="#94a3b8">puente nativo · TUI intacta</text>
+        </g>
+        <g>
+          <rect x="545" y="38" width="150" height="54" rx="8" fill="#2a1e0c" stroke="#b45309"/>
+          <text x="620" y="60" text-anchor="middle" class="svg-label" fill="#fcd34d">server (apps/broker)</text>
+          <text x="620" y="78" text-anchor="middle" class="svg-sub" fill="#94a3b8">routing · dedup · durable</text>
+        </g>
+        <g>
+          <rect x="710" y="38" width="140" height="54" rx="8" fill="#1e293b" stroke="#475569"/>
+          <text x="780" y="60" text-anchor="middle" class="svg-label" fill="#e2e8f0">cli (apps/cli)</text>
+          <text x="780" y="78" text-anchor="middle" class="svg-sub" fill="#94a3b8">init · inspect · systemd</text>
+        </g>
+      </g>
+
+      <!-- Sesión OMP A -->
+      <g font-family="ui-sans-serif">
+        <rect x="40" y="180" width="220" height="230" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+        <rect x="40" y="180" width="220" height="34" rx="12" fill="#1e293b"/>
+        <text x="150" y="202" text-anchor="middle" class="svg-label" fill="#e2e8f0">Sesión OMP · A (raíz)</text>
+        <rect x="60" y="228" width="180" height="46" rx="8" fill="#14532d" stroke="#16a34a"/>
+        <text x="150" y="247" text-anchor="middle" class="svg-label" fill="#bbf7d0">OMP nativo</text>
+        <text x="150" y="264" text-anchor="middle" class="svg-sub" fill="#86efac">TUI + runtime intactos</text>
+        <rect x="60" y="288" width="180" height="46" rx="8" fill="#17132e" stroke="#7c3aed"/>
+        <text x="150" y="307" text-anchor="middle" class="svg-label" fill="#c4b5fd">omp-adapter</text>
+        <text x="150" y="324" text-anchor="middle" class="svg-sub" fill="#a5b4fc">observa · entrega · responde</text>
+        <rect x="60" y="348" width="180" height="44" rx="8" fill="#0c2a33" stroke="#0e7490"/>
+        <text x="150" y="367" text-anchor="middle" class="svg-label" fill="#7dd3fc">@session-broker/client</text>
+        <text x="150" y="383" text-anchor="middle" class="svg-sub" fill="#67e8f9">WS outbound autenticado</text>
+        <line x1="150" y1="274" x2="150" y2="288" stroke="#475569" stroke-width="1.5"/>
+        <line x1="150" y1="334" x2="150" y2="348" stroke="#475569" stroke-width="1.5"/>
+      </g>
+
+      <!-- Sesión OMP B -->
+      <g font-family="ui-sans-serif">
+        <rect x="700" y="180" width="220" height="230" rx="12" fill="#0f172a" stroke="#334155" stroke-width="1.5"/>
+        <rect x="700" y="180" width="220" height="34" rx="12" fill="#1e293b"/>
+        <text x="810" y="202" text-anchor="middle" class="svg-label" fill="#e2e8f0">Sesión OMP · B</text>
+        <rect x="720" y="228" width="180" height="46" rx="8" fill="#14532d" stroke="#16a34a"/>
+        <text x="810" y="247" text-anchor="middle" class="svg-label" fill="#bbf7d0">OMP nativo</text>
+        <text x="810" y="264" text-anchor="middle" class="svg-sub" fill="#86efac">sin inferencia del broker</text>
+        <rect x="720" y="288" width="180" height="46" rx="8" fill="#17132e" stroke="#7c3aed"/>
+        <text x="810" y="307" text-anchor="middle" class="svg-label" fill="#c4b5fd">omp-adapter</text>
+        <text x="810" y="324" text-anchor="middle" class="svg-sub" fill="#a5b4fc">idle → entrega · busy → followUp</text>
+        <rect x="720" y="348" width="180" height="44" rx="8" fill="#0c2a33" stroke="#0e7490"/>
+        <text x="810" y="367" text-anchor="middle" class="svg-label" fill="#7dd3fc">@session-broker/client</text>
+        <text x="810" y="383" text-anchor="middle" class="svg-sub" fill="#67e8f9">WS outbound autenticado</text>
+        <line x1="810" y1="274" x2="810" y2="288" stroke="#475569" stroke-width="1.5"/>
+        <line x1="810" y1="334" x2="810" y2="348" stroke="#475569" stroke-width="1.5"/>
+      </g>
+
+      <!-- Broker central -->
+      <g font-family="ui-sans-serif">
+        <rect x="380" y="210" width="200" height="150" rx="12" fill="#2a1e0c" stroke="#d97706" stroke-width="2"/>
+        <text x="480" y="238" text-anchor="middle" class="svg-label" fill="#fcd34d" font-size="14">BROKER</text>
+        <text x="480" y="256" text-anchor="middle" class="svg-sub" fill="#fde68a">apps/broker · proceso único</text>
+        <g class="svg-sub" fill="#fbbf24">
+          <text x="396" y="282">· grants + control epoch</text>
+          <text x="396" y="300">· dedup (requestId + hash)</text>
+          <text x="396" y="318">· ask/reply correlacionado</text>
+          <text x="396" y="336">· cursores + backpressure</text>
+        </g>
+        <!-- SQLite -->
+        <g>
+          <path d="M 415 380 L 415 408 Q 415 420 480 420 Q 545 420 545 408 L 545 380" fill="#1e293b" stroke="#475569"/>
+          <ellipse cx="480" cy="380" rx="65" ry="11" fill="#1e293b" stroke="#475569"/>
+          <text x="480" y="384" text-anchor="middle" class="svg-sub" fill="#94a3b8">SQLite (WAL)</text>
+          <text x="480" y="440" text-anchor="middle" class="svg-sub" fill="#64748b">$XDG_DATA_HOME/session-broker</text>
+          <line x1="480" y1="360" x2="480" y2="370" stroke="#475569" stroke-width="1.5"/>
+        </g>
+      </g>
+
+      <!-- Conexiones WS -->
+      <g stroke="#0ea5e9" stroke-width="2" fill="none">
+        <path d="M 260 370 C 320 370 330 340 380 330"/>
+        <path d="M 700 370 C 640 370 630 340 580 330"/>
+      </g>
+      <g font-family="ui-sans-serif">
+        <text x="320" y="356" text-anchor="middle" class="svg-sub" fill="#7dd3fc">WebSocket</text>
+        <text x="645" y="356" text-anchor="middle" class="svg-sub" fill="#7dd3fc">WebSocket</text>
+      </g>
+
+      <!-- CLI -->
+      <g font-family="ui-sans-serif">
+        <rect x="40" y="460" width="220" height="72" rx="10" fill="#1e293b" stroke="#475569"/>
+        <text x="150" y="486" text-anchor="middle" class="svg-label" fill="#e2e8f0">CLI (exit codes 0–17)</text>
+        <text x="150" y="504" text-anchor="middle" class="svg-sub" fill="#94a3b8">sessions list · inspect · history</text>
+        <text x="150" y="520" text-anchor="middle" class="svg-sub" fill="#94a3b8">init idempotente · unidad systemd</text>
+        <path d="M 150 460 C 150 440 260 420 380 360" stroke="#475569" stroke-width="1.5" fill="none" stroke-dasharray="4 4"/>
+      </g>
+
+      <!-- Regla de oro -->
+      <g font-family="ui-sans-serif">
+        <rect x="380" y="480" width="540" height="60" rx="10" fill="#1a1030" stroke="#7c3aed" stroke-dasharray="5 4"/>
+        <text x="650" y="504" text-anchor="middle" class="svg-label" fill="#c4b5fd">Regla de honestidad</text>
+        <text x="650" y="522" text-anchor="middle" class="svg-sub" fill="#a5b4fc">presencia ≠ request state ≠ job status · sin exactly-once externo</text>
+      </g>
+    </svg>
+    </div>
+  </section>
+
+  <!-- ══════════ 2 · SECUENCIA ASK/REPLY ══════════ -->
+  <section class="space-y-4">
+    <div class="flex items-baseline gap-3">
+      <span class="text-sky-400 font-mono text-sm">02</span>
+      <h2 class="text-xl font-semibold">Flujo ask / reply correlacionado</h2>
+    </div>
+    <p class="text-sm text-slate-400">Solo una herramienta explícita <code class="text-cyan-300 mono">session_reply(replyTo=requestId)</code> completa un ask. Ni <code class="mono text-slate-300">agent_end</code> ni el siguiente texto del modelo cuentan como respuesta.</p>
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 overflow-x-auto">
+    <svg viewBox="0 0 980 700" class="w-full min-w-[860px]" role="img" aria-label="Diagrama de secuencia ask reply">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+        </marker>
+        <marker id="arrSky" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#38bdf8"/>
+        </marker>
+        <marker id="arrVio" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#a78bfa"/>
+        </marker>
+      </defs>
+      <g font-family="ui-sans-serif">
+        <!-- cabeceras -->
+        <rect x="35" y="20" width="150" height="44" rx="8" fill="#0c2a33" stroke="#0e7490"/>
+        <text x="110" y="47" text-anchor="middle" class="svg-label" fill="#7dd3fc">Sesión A (client)</text>
+        <rect x="315" y="20" width="150" height="44" rx="8" fill="#2a1e0c" stroke="#d97706"/>
+        <text x="390" y="47" text-anchor="middle" class="svg-label" fill="#fcd34d">Broker</text>
+        <rect x="565" y="20" width="170" height="44" rx="8" fill="#17132e" stroke="#7c3aed"/>
+        <text x="650" y="47" text-anchor="middle" class="svg-label" fill="#c4b5fd">Adaptador · Sesión B</text>
+        <rect x="815" y="20" width="140" height="44" rx="8" fill="#14532d" stroke="#16a34a"/>
+        <text x="885" y="47" text-anchor="middle" class="svg-label" fill="#bbf7d0">OMP B nativo</text>
+        <!-- lifelines -->
+        <g stroke="#334155" stroke-dasharray="4 5">
+          <line x1="110" y1="64" x2="110" y2="640"/>
+          <line x1="390" y1="64" x2="390" y2="640"/>
+          <line x1="650" y1="64" x2="650" y2="640"/>
+          <line x1="885" y1="64" x2="885" y2="640"/>
+        </g>
+
+        <!-- 1 ask -->
+        <line x1="110" y1="100" x2="390" y2="100" stroke="#38bdf8" stroke-width="2" marker-end="url(#arrSky)"/>
+        <text x="250" y="92" text-anchor="middle" class="svg-label mono" fill="#7dd3fc">ask(requestId, target, payload)</text>
+
+        <!-- note broker -->
+        <rect x="300" y="118" width="260" height="52" rx="6" fill="#1c1917" stroke="#57534e"/>
+        <text x="430" y="138" text-anchor="middle" class="svg-sub" fill="#d6d3d1">valida grant · dedup (requestId+hash)</text>
+        <text x="430" y="154" text-anchor="middle" class="svg-sub" fill="#d6d3d1">commit durable → <tspan font-weight="700" fill="#fbbf24">queued</tspan> · cola máx 8</text>
+
+        <!-- 2 evento -->
+        <line x1="390" y1="196" x2="650" y2="196" stroke="#a78bfa" stroke-width="2" marker-end="url(#arrVio)"/>
+        <text x="520" y="188" text-anchor="middle" class="svg-label" fill="#c4b5fd">evento broker.ask (suscripción)</text>
+
+        <!-- note adapter -->
+        <rect x="565" y="214" width="250" height="36" rx="6" fill="#1c1917" stroke="#57534e"/>
+        <text x="690" y="231" text-anchor="middle" class="svg-sub" fill="#d6d3d1">idle → sendUserMessage</text>
+        <text x="690" y="245" text-anchor="middle" class="svg-sub" fill="#d6d3d1">busy → deliverAs followUp</text>
+
+        <!-- 3 submit -->
+        <line x1="650" y1="278" x2="885" y2="278" stroke="#a78bfa" stroke-width="2" marker-end="url(#arrVio)"/>
+        <text x="768" y="270" text-anchor="middle" class="svg-label" fill="#c4b5fd">entrega el prompt → submitted</text>
+
+        <!-- note omp -->
+        <rect x="790" y="296" width="185" height="52" rx="6" fill="#1c1917" stroke="#57534e"/>
+        <text x="882" y="316" text-anchor="middle" class="svg-sub" fill="#d6d3d1">modelo responde con la</text>
+        <text x="882" y="330" text-anchor="middle" class="svg-sub mono" fill="#86efac">session_reply</text>
+        <text x="882" y="343" text-anchor="middle" class="svg-sub mono" fill="#86efac">(replyTo = requestId)</text>
+
+        <!-- 4 reply back -->
+        <line x1="885" y1="378" x2="650" y2="378" stroke="#a78bfa" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrVio)"/>
+        <text x="768" y="370" text-anchor="middle" class="svg-sub" fill="#a5b4fc">texto de la herramienta</text>
+
+        <!-- 5 reply to broker -->
+        <line x1="650" y1="408" x2="390" y2="408" stroke="#a78bfa" stroke-width="2" marker-end="url(#arrVio)"/>
+        <text x="520" y="400" text-anchor="middle" class="svg-label" fill="#c4b5fd">reply(replyTo=requestId)</text>
+
+        <!-- note broker completed -->
+        <rect x="300" y="426" width="260" height="36" rx="6" fill="#1c1917" stroke="#57534e"/>
+        <text x="430" y="443" text-anchor="middle" class="svg-sub" fill="#d6d3d1">estado → <tspan font-weight="700" fill="#4ade80">completed</tspan></text>
+        <text x="430" y="457" text-anchor="middle" class="svg-sub" fill="#d6d3d1">recibo durable, idempotente</text>
+
+        <!-- 6 respuesta a A -->
+        <line x1="390" y1="492" x2="110" y2="492" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrSky)"/>
+        <text x="250" y="484" text-anchor="middle" class="svg-label" fill="#7dd3fc">respuesta / evento al suscriptor</text>
+
+        <!-- crash window -->
+        <rect x="545" y="530" width="410" height="96" rx="10" fill="#1f1116" stroke="#f43f5e" stroke-dasharray="6 4"/>
+        <text x="750" y="554" text-anchor="middle" class="svg-label" fill="#fda4af">Ventana de crash (crash_window)</text>
+        <text x="750" y="572" text-anchor="middle" class="svg-sub" fill="#fecdd3">efecto aplicado en OMP pero resultado sin persistir</text>
+        <text x="750" y="590" text-anchor="middle" class="svg-sub" fill="#fecdd3">→ <tspan font-weight="700" fill="#e879f9">outcome_unknown</tspan>: NUNCA replay</text>
+        <text x="750" y="608" text-anchor="middle" class="svg-sub" fill="#fecdd3">solo reconciliación explícita con evidencia real</text>
+      </g>
+    </svg>
+    </div>
+  </section>
+
+  <!-- ══════════ 3 · MÁQUINA DE ESTADOS ══════════ -->
+  <section class="space-y-4">
+    <div class="flex items-baseline gap-3">
+      <span class="text-sky-400 font-mono text-sm">03</span>
+      <h2 class="text-xl font-semibold">Máquina de estados del request</h2>
+    </div>
+    <p class="text-sm text-slate-400">Estados congelados en <code class="mono text-slate-300">REQUEST_STATES</code>. Los terminales nunca re-entregan; <code class="mono text-fuchsia-300">outcome_unknown</code> solo se resuelve reconciliando.</p>
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 overflow-x-auto">
+    <svg viewBox="0 0 940 430" class="w-full min-w-[780px]" role="img" aria-label="Máquina de estados">
+      <defs>
+        <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+        </marker>
+        <marker id="a2r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#fb7185"/>
+        </marker>
+        <marker id="a2g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#4ade80"/>
+        </marker>
+      </defs>
+      <g font-family="ui-sans-serif">
+        <!-- queued -->
+        <rect x="40" y="90" width="130" height="48" rx="10" fill="#2a1e0c" stroke="#d97706" stroke-width="2"/>
+        <text x="105" y="113" text-anchor="middle" class="svg-label" fill="#fcd34d">queued</text>
+        <text x="105" y="129" text-anchor="middle" class="svg-sub" fill="#fbbf24">commit durable</text>
+
+        <!-- received chip -->
+        <rect x="40" y="20" width="200" height="42" rx="8" fill="#1e293b" stroke="#475569" stroke-dasharray="4 4"/>
+        <text x="140" y="38" text-anchor="middle" class="svg-label" fill="#cbd5e1">received</text>
+        <text x="140" y="53" text-anchor="middle" class="svg-sub" fill="#94a3b8">journal incoming (consumidor)</text>
+
+        <!-- rejected -->
+        <rect x="40" y="200" width="130" height="48" rx="10" fill="#2a0f14" stroke="#f43f5e"/>
+        <text x="105" y="223" text-anchor="middle" class="svg-label" fill="#fda4af">rejected</text>
+        <text x="105" y="239" text-anchor="middle" class="svg-sub" fill="#fda4af">antes de efectos</text>
+
+        <!-- submitted -->
+        <rect x="290" y="140" width="140" height="48" rx="10" fill="#172554" stroke="#3b82f6" stroke-width="2"/>
+        <text x="360" y="163" text-anchor="middle" class="svg-label" fill="#93c5fd">submitted</text>
+        <text x="360" y="179" text-anchor="middle" class="svg-sub" fill="#93c5fd">entregado a OMP</text>
+
+        <!-- terminales -->
+        <rect x="640" y="70" width="150" height="48" rx="10" fill="#052e16" stroke="#22c55e" stroke-width="2"/>
+        <text x="715" y="93" text-anchor="middle" class="svg-label" fill="#86efac">completed</text>
+        <text x="715" y="109" text-anchor="middle" class="svg-sub" fill="#86efac">solo reply explícito</text>
+
+        <rect x="640" y="150" width="150" height="48" rx="10" fill="#2a0f14" stroke="#f43f5e"/>
+        <text x="715" y="173" text-anchor="middle" class="svg-label" fill="#fda4af">failed</text>
+        <text x="715" y="189" text-anchor="middle" class="svg-sub" fill="#fda4af">error con resultado</text>
+
+        <rect x="640" y="230" width="150" height="48" rx="10" fill="#291a05" stroke="#f59e0b"/>
+        <text x="715" y="253" text-anchor="middle" class="svg-label" fill="#fcd34d">expired</text>
+        <text x="715" y="269" text-anchor="middle" class="svg-sub" fill="#fcd34d">no revierte efectos</text>
+
+        <rect x="640" y="310" width="150" height="48" rx="10" fill="#1e293b" stroke="#64748b"/>
+        <text x="715" y="333" text-anchor="middle" class="svg-label" fill="#cbd5e1">cancelled</text>
+        <text x="715" y="349" text-anchor="middle" class="svg-sub" fill="#cbd5e1">no es rollback</text>
+
+        <!-- outcome_unknown -->
+        <rect x="290" y="300" width="190" height="60" rx="10" fill="#1a1030" stroke="#d946ef" stroke-width="2" stroke-dasharray="6 4"/>
+        <text x="385" y="324" text-anchor="middle" class="svg-label" fill="#e879f9">outcome_unknown</text>
+        <text x="385" y="341" text-anchor="middle" class="svg-sub" fill="#e879f9">«no sé qué pasó»</text>
+        <text x="385" y="355" text-anchor="middle" class="svg-sub" fill="#c084fc">crash_window · sin replay</text>
+
+        <!-- aristas -->
+        <line x1="170" y1="114" x2="290" y2="158" stroke="#64748b" stroke-width="1.8" marker-end="url(#a2)"/>
+        <text x="228" y="126" text-anchor="middle" class="svg-sub" fill="#94a3b8">entrega</text>
+        <line x1="105" y1="138" x2="105" y2="200" stroke="#fb7185" stroke-width="1.8" marker-end="url(#a2r)"/>
+        <text x="176" y="180" text-anchor="middle" class="svg-sub" fill="#fb7185">grant/capacidad</text>
+        <line x1="430" y1="140" x2="640" y2="98" stroke="#4ade80" stroke-width="1.8" marker-end="url(#a2g)"/>
+        <text x="540" y="106" text-anchor="middle" class="svg-sub" fill="#4ade80">reply(replyTo)</text>
+        <line x1="430" y1="172" x2="640" y2="172" stroke="#fb7185" stroke-width="1.8" marker-end="url(#a2r)"/>
+        <text x="536" y="164" text-anchor="middle" class="svg-sub" fill="#fb7185">fail</text>
+        <line x1="420" y1="188" x2="640" y2="246" stroke="#f59e0b" stroke-width="1.8" marker-end="url(#a2)"/>
+        <text x="536" y="228" text-anchor="middle" class="svg-sub" fill="#fbbf24">TTL vencido</text>
+        <line x1="400" y1="188" x2="660" y2="322" stroke="#64748b" stroke-width="1.8" marker-end="url(#a2)"/>
+        <text x="540" y="278" text-anchor="middle" class="svg-sub" fill="#94a3b8">cancel</text>
+        <line x1="370" y1="188" x2="380" y2="300" stroke="#d946ef" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a2)"/>
+        <text x="440" y="252" text-anchor="middle" class="svg-sub" fill="#e879f9">crash_window</text>
+        <!-- reconcile -->
+        <path d="M 480 310 C 560 280 610 220 640 108" stroke="#4ade80" stroke-width="1.8" fill="none" stroke-dasharray="5 4" marker-end="url(#a2g)"/>
+        <text x="600" y="205" text-anchor="middle" class="svg-sub" fill="#4ade80">reconcile_completed</text>
+        <line x1="480" y1="345" x2="640" y2="320" stroke="#fb7185" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a2r)"/>
+        <text x="562" y="332" text-anchor="middle" class="svg-sub" fill="#fb7185">reconcile_failed</text>
+      </g>
+    </svg>
+    </div>
+  </section>
+
+  <!-- ══════════ 4 · SEGURIDAD ══════════ -->
+  <section class="space-y-4">
+    <div class="flex items-baseline gap-3">
+      <span class="text-sky-400 font-mono text-sm">04</span>
+      <h2 class="text-xl font-semibold">Seguridad en tres capas</h2>
+    </div>
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 overflow-x-auto">
+    <svg viewBox="0 0 940 400" class="w-full min-w-[780px]" role="img" aria-label="Capas de seguridad">
+      <g font-family="ui-sans-serif">
+        <!-- capa 1 grants -->
+        <rect x="20" y="20" width="900" height="110" rx="12" fill="#0f172a" stroke="#0ea5e9"/>
+        <text x="40" y="46" class="svg-label" fill="#7dd3fc">1 · Autenticación por grants</text>
+        <g class="svg-sub" fill="#cbd5e1">
+          <text x="40" y="70">hello(credential) → lookup en grants.json solo por <tspan class="mono" fill="#67e8f9">credentialHash = sha256(credential)</tspan></text>
+          <text x="40" y="88">→ welcome(capabilidades negociadas). La credencial en claro JAMÁS se persiste; grants scoped por acción.</text>
+          <text x="40" y="106" fill="#94a3b8">config del cliente: ~/.config/session-broker/config.json con permisos 600 · grants.json con 600 · fail-closed si faltan</text>
+        </g>
+
+        <!-- capa 2 root binding -->
+        <rect x="20" y="145" width="900" height="110" rx="12" fill="#0f172a" stroke="#8b5cf6"/>
+        <text x="40" y="171" class="svg-label" fill="#c4b5fd">2 · Root binding (identidad no heredable)</text>
+        <g class="svg-sub" fill="#cbd5e1">
+          <text x="40" y="195">La sesión raíz emite un proof MAC firmado con <tspan class="mono" fill="#c4b5fd">SESSION_BROKER_MAC_KEY</tspan> (nunca en CLI ni logs).</text>
+          <text x="40" y="213">El broker verifica el proof contra el ledger: un <tspan font-weight="700" fill="#fda4af">subagente que hereda claims es DENEGADO</tspan> — no puede suplantar a su padre.</text>
+          <text x="40" y="231" fill="#94a3b8">Consumos de proofs quedan en ledger íntegro (no se reviven tras restore) · root_proof_version congelado</text>
+        </g>
+
+        <!-- capa 3 fencing -->
+        <rect x="20" y="270" width="900" height="110" rx="12" fill="#0f172a" stroke="#f59e0b"/>
+        <text x="40" y="296" class="svg-label" fill="#fcd34d">3 · Control fencing (control epoch)</text>
+        <g class="svg-sub" fill="#cbd5e1">
+          <text x="40" y="320">Controlar una sesión requiere epoch vigente. Takeover, crash o restore → <tspan class="mono" fill="#fcd34d">control_epoch + 1</tspan>.</text>
+          <text x="40" y="338">Cualquier control con epoch viejo falla con <tspan class="mono" fill="#fda4af">STALE_CONTROL_EPOCH</tspan> — la instancia muerta no puede zombificar la sesión.</text>
+          <text x="40" y="356" fill="#94a3b8">Lease TTL 24 h · un solo escritor por store (writer lock SQLite) · IDs autenticados, no UUID-como-auth</text>
+        </g>
+      </g>
+    </svg>
+    </div>
+  </section>
+
+  <!-- ══════════ 5 · RECOVERY ══════════ -->
+  <section class="space-y-4">
+    <div class="flex items-baseline gap-3">
+      <span class="text-sky-400 font-mono text-sm">05</span>
+      <h2 class="text-xl font-semibold">Backup y restore conservador</h2>
+    </div>
+    <p class="text-sm text-slate-400">El backup restaura <strong class="text-slate-200">datos, no confianza</strong>: lo ocurrido después del snapshot no se asume.</p>
+    <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-4 overflow-x-auto">
+    <svg viewBox="0 0 940 330" class="w-full min-w-[780px]" role="img" aria-label="Backup y restore">
+      <defs>
+        <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+      <g font-family="ui-sans-serif">
+        <!-- origen -->
+        <rect x="20" y="40" width="200" height="130" rx="10" fill="#2a1e0c" stroke="#d97706"/>
+        <text x="120" y="66" text-anchor="middle" class="svg-label" fill="#fcd34d">dataDir activo</text>
+        <g class="svg-sub" fill="#fde68a">
+          <text x="120" y="92" text-anchor="middle" class="mono">broker.sqlite (+WAL)</text>
+          <text x="120" y="112" text-anchor="middle" class="mono">grants.json</text>
+          <text x="120" y="132" text-anchor="middle">journal de recibos</text>
+          <text x="120" y="152" text-anchor="middle">permisos 600 / 700</text>
+        </g>
+
+        <!-- VACUUM INTO -->
+        <line x1="220" y1="105" x2="330" y2="105" stroke="#94a3b8" stroke-width="2" marker-end="url(#a3)"/>
+        <text x="275" y="92" text-anchor="middle" class="svg-sub mono" fill="#cbd5e1">VACUUM INTO</text>
+        <text x="275" y="124" text-anchor="middle" class="svg-sub" fill="#94a3b8">snapshot consistente</text>
+
+        <!-- backup -->
+        <rect x="330" y="40" width="220" height="130" rx="10" fill="#1e293b" stroke="#475569"/>
+        <text x="440" y="66" text-anchor="middle" class="svg-label" fill="#e2e8f0">backup dir (elegido)</text>
+        <g class="svg-sub" fill="#cbd5e1">
+          <text x="440" y="92" text-anchor="middle" class="mono">broker.sqlite</text>
+          <text x="440" y="112" text-anchor="middle" class="mono">grants.json + manifest</text>
+          <text x="440" y="132" text-anchor="middle">hashes · integrity_check</text>
+          <text x="440" y="152" text-anchor="middle">verifyBackup solo lectura</text>
+        </g>
+
+        <!-- restore -->
+        <line x1="550" y1="105" x2="660" y2="105" stroke="#94a3b8" stroke-width="2" marker-end="url(#a3)"/>
+        <text x="605" y="92" text-anchor="middle" class="svg-sub mono" fill="#cbd5e1">restoreBackup</text>
+        <text x="605" y="124" text-anchor="middle" class="svg-sub" fill="#94a3b8">dir nuevo y vacío</text>
+
+        <!-- restaurado -->
+        <rect x="660" y="40" width="260" height="130" rx="10" fill="#052e16" stroke="#22c55e"/>
+        <text x="790" y="66" text-anchor="middle" class="svg-label" fill="#86efac">instancia restaurada</text>
+        <g class="svg-sub" fill="#bbf7d0">
+          <text x="790" y="92" text-anchor="middle">dedup + recibos íntegros (idempotencia)</text>
+          <text x="790" y="112" text-anchor="middle">ledger de root proofs íntegro</text>
+          <text x="790" y="132" text-anchor="middle">outcome_unknown conservado tal cual</text>
+          <text x="790" y="152" text-anchor="middle">restore-report.json con lo pendiente</text>
+        </g>
+
+        <!-- política conservadora -->
+        <rect x="20" y="200" width="900" height="110" rx="12" fill="#1f1116" stroke="#f43f5e" stroke-dasharray="6 4"/>
+        <text x="40" y="226" class="svg-label" fill="#fda4af">Política conservadora tras restore (fail-closed)</text>
+        <g class="svg-sub" fill="#fecdd3">
+          <text x="40" y="250">1· SIN grants.json → requiere re-autorización explícita del operador (requiresReauthorization)</text>
+          <text x="40" y="270">2· Leases invalidados: sesiones offline, sin titular · 3· control_epoch +1 (fencing de instancias viejas)</text>
+          <text x="40" y="290">4· Writer lock NO viaja: el store restaurado adquiere el suyo propio · un backup corrupto falla sin tocar el origen</text>
+        </g>
+      </g>
+    </svg>
+    </div>
+  </section>
+
+  <!-- ══════════ 6 · LÍMITES + GATES ══════════ -->
+  <section class="space-y-4">
+    <div class="flex items-baseline gap-3">
+      <span class="text-sky-400 font-mono text-sm">06</span>
+      <h2 class="text-xl font-semibold">Backpressure, gates y verificación</h2>
+    </div>
+    <div class="grid md:grid-cols-2 gap-5">
+      <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+        <h3 class="font-semibold text-slate-200 mb-3 text-sm uppercase tracking-wide">Límites congelados</h3>
+        <table class="w-full text-sm">
+          <tbody class="divide-y divide-slate-800">
+            <tr><td class="py-1.5 mono text-cyan-300">maxFrameBytes</td><td class="text-right text-slate-300">1 MiB → <span class="text-rose-300">frame_too_large</span></td></tr>
+            <tr><td class="py-1.5 mono text-cyan-300">maxPayloadBytes</td><td class="text-right text-slate-300">512 KiB → <span class="text-rose-300">payload_too_large</span></td></tr>
+            <tr><td class="py-1.5 mono text-cyan-300">maxQueuedAsksPerSession</td><td class="text-right text-slate-300">8 → <span class="text-rose-300">QUEUE_FULL</span></td></tr>
+            <tr><td class="py-1.5 mono text-cyan-300">maxInFlight / rpm per grant</td><td class="text-right text-slate-300">32 / 120 → <span class="text-rose-300">QUEUE_FULL / RATE_LIMITED</span></td></tr>
+            <tr><td class="py-1.5 mono text-cyan-300">event queue / subscription</td><td class="text-right text-slate-300">1000 ítems / 4 MiB → corte explícito</td></tr>
+            <tr><td class="py-1.5 mono text-cyan-300">retention request/event</td><td class="text-right text-slate-300">7 d → <span class="text-amber-300">CURSOR_EXPIRED</span> (exit 15)</td></tr>
+            <tr><td class="py-1.5 mono text-cyan-300">cursorTtl</td><td class="text-right text-slate-300">1 h → snapshot con <span class="text-amber-300">gap: true</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="space-y-5">
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+          <h3 class="font-semibold text-slate-200 mb-3 text-sm uppercase tracking-wide">Gates (cerrados por defecto)</h3>
+          <div class="space-y-2.5 text-sm">
+            <div class="flex gap-3 items-start">
+              <span class="mt-0.5 px-2 py-0.5 rounded text-xs font-mono bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0">G-BROKER-LIVE</span>
+              <p class="text-slate-400">Inferencia/proveedores reales y gasto. Opt-in del operador; fuera del DoD. Todas las suites usan fake model que falla si se invoca.</p>
+            </div>
+            <div class="flex gap-3 items-start">
+              <span class="mt-0.5 px-2 py-0.5 rounded text-xs font-mono bg-rose-500/15 text-rose-300 border border-rose-500/30 shrink-0">G-BROKER-SERVICE</span>
+              <p class="text-slate-400">Servicio systemd user persistente. Solo artefactos de ejemplo en <code class="mono">ops/systemd/</code>; nada instalado ni arrancado.</p>
+            </div>
+          </div>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
+          <h3 class="font-semibold text-slate-200 mb-3 text-sm uppercase tracking-wide">Verificación (evidencia real)</h3>
+          <div class="grid grid-cols-3 gap-2 text-center text-sm">
+            <div class="rounded-lg bg-slate-950 border border-slate-800 py-2"><div class="text-lg font-bold text-emerald-300">83</div><div class="text-xs text-slate-500">protocol</div></div>
+            <div class="rounded-lg bg-slate-950 border border-slate-800 py-2"><div class="text-lg font-bold text-emerald-300">46</div><div class="text-xs text-slate-500">broker</div></div>
+            <div class="rounded-lg bg-slate-950 border border-slate-800 py-2"><div class="text-lg font-bold text-emerald-300">63</div><div class="text-xs text-slate-500">cli</div></div>
+            <div class="rounded-lg bg-slate-950 border border-slate-800 py-2"><div class="text-lg font-bold text-emerald-300">25</div><div class="text-xs text-slate-500">omp</div></div>
+            <div class="rounded-lg bg-slate-950 border border-slate-800 py-2"><div class="text-lg font-bold text-emerald-300">46</div><div class="text-xs text-slate-500">recovery</div></div>
+            <div class="rounded-lg bg-slate-950 border border-slate-800 py-2"><div class="text-lg font-bold text-emerald-300">28</div><div class="text-xs text-slate-500">handoff</div></div>
+          </div>
+          <p class="text-xs text-slate-500 mt-3"><code class="mono">bun run verify</code> · exit 0 · consumidor offline desde /tmp con tarballs locales · source hash <code class="mono">sha256:857bf90a…</code> (120 archivos)</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="border-t border-slate-800 pt-6 pb-4 text-xs text-slate-500 flex flex-wrap gap-x-6 gap-y-2">
+    <span>Generado desde el handoff verificado: <code class="mono">docs/handoff/omp-broker-v1.md</code></span>
+    <span>·</span>
+    <span>OMP v18.3.1 · protocolo 1.0.0 · sin publicación npm</span>
+  </footer>
+</div>
+</body>
+</html>

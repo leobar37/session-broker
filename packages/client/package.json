@@ -1,0 +1,14 @@
+{
+  "name": "@session-broker/client",
+  "version": "0.1.0",
+  "description": "Cliente público reutilizable del session broker: lifecycle WS/WSS outbound, correlación requestId, suscripciones, reconexión con cursor y errores tipados de la tabla congelada.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@session-broker/protocol": "workspace:*"
+  },
+  "devDependencies": {}
+}

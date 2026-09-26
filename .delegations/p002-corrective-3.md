@@ -1,0 +1,19 @@
+# CORRECTIVE HANDOFF #3 — P-002 (misma unidad, mismo ownership)
+
+## Task Anchor (restatélo en tu reporte)
+- Objetivo literal del usuario: «no, mejor corremos esto ahi manualmente, yo abro el proyecto y ehecuta el script de orquestate sesion, este plan incluye un plan global que esta aqui en este repo, un plan dentro de la carpeta broker,».
+- Unidad: P-002/G-001. Éxito observable: `bun run typecheck` y `bun run test:broker` exit 0 reproducidos por el coordinador.
+
+## Contexto (coordinador reprodujo gates tras tu corrective #2)
+Estado: `bun run typecheck` exit 0 ✓; `bun run test:cli` 63/0 ✓ (rama P-003, intacta); `bun run test:broker` = 42 pass / 4 fail. Tu fix de wire-hashing resolvió 20 de 24. Quedan EXACTAMENTE 4 fallos con esta evidencia:
+
+1. `tests/broker/durability.test.ts:123` — test «mismo requestId + mismo hash: una sola identidad durable (replay sin efectos)»: `expect(x).toBe(true)` recibe `undefined`. Contexto: el test comprueba el replay idempotente. Tu interop declarada dice «Replay idempotente responde `result {replay:true, record}`»; el fake de P-003 (ya verde) emite `{replay:true, operation, state, receipts}`. Verifica QUÉ forma emite tu server realmente y alinea con `docs/contracts/durability.md`/`protocol.md` (la forma congelada manda; si el campo que el test lee es otro, corrige el test y documéntalo; si la implementación se desvía del contrato, corrígela).
+2. `tests/broker/durability.test.ts:140` (vía `expectResponseError`, `tests/broker/helpers.ts:434`) — test «mismo requestId con hash distinto: PAYLOAD_CONFLICT sin efectos»: el error de respuesta esperado llega `undefined`. Comprueba que el hash distinto bajo el mismo `requestId` responda error `PAYLOAD_CONFLICT` (state `rejected`, SIN efectos: sin registro nuevo, sin ejecuciones, sin segundo mensaje) tal como exige `durability.md`.
+3. `tests/broker/durability.test.ts:197` → `register()` (`durability.test.ts:75`) — test «crash real (SIGKILL) tras queued conserva request/journal»: tras el SIGKILL y el reinicio del broker, la reconexión no recibe welcome (`expect(welcome).toBeDefined()` → undefined). Sospecha fuerte de bug REAL en la recuperación: el lock de escritor único (pid+heartbeat en `store.ts`) puede no reconocer como stale el pid muerto, o el servidor reiniciado no queda listo/acepta. La fase exige literalmente que un crash real conserve request/journal y que el reinicio acepte reconexiones: diagnostícalo por lectura y corrígelo dentro de ownership (apps/broker), sin romper la exclusión de segundo escritor vivo.
+4. `tests/broker/reads.test.ts:215` — test «subscribe recibe eventos vivos y su ack llega antes que los eventos»: el `requestId` esperado (`req_94f6…`) difiere del recibido (`req_7ff2…`). Revisa la atribución de `requestId` en los eventos de `subscribe` (¿el evento debe llevar el `requestId` del request que originó el evento, el de la suscripción, o ninguno?) y alinea implementación/test con `docs/contracts/protocol.md` (si el contrato calla, REPÓRTA la ambigüedad, elige la lectura conservadora y documéntala).
+
+## Reglas
+EDIT-ONLY: no ejecutes tests/typecheck/builds/formatters/installs; el coordinador reproduce `bun run typecheck` + `bun run test:broker`. Ownership: `apps/broker/**` y `tests/broker/**`; `packages/protocol` y `docs/contracts` READ-ONLY (los defectos de contrato se REPORTAN). No toques `packages/client`, `apps/cli`, `tests/cli`, raíz ni `.plans/**`. Sin debilitar aserciones ni maquillar verde: coherencia con el contrato congelado. Confirma tu modelo efectivo (`xiaomi-token-plan-sgp/mimo-v2.6-pro`). Sin monorepo/dotfiles/git/Climier/publicación/servicios/inferencia real.
+
+## Reporte
+Anchor restatado, modelo efectivo, archivos modificados, tabla de los 4 fallos → causa → fix (estático), ambigüedades/decisiones, pendientes y bloqueos mínimos. Cierra con STOP.

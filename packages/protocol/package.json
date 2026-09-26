@@ -1,0 +1,14 @@
+{
+  "name": "@session-broker/protocol",
+  "version": "0.1.0",
+  "description": "Contrato público congelado del session broker: identidad, envelopes, estados, dedup, grants, root proof, capacidades, límites y errores.",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./fixtures": "./src/fixtures.ts",
+    "./package.json": "./package.json"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

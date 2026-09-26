@@ -1,0 +1,16 @@
+# Overlay local; no modifica ~/code/dotfiles.
+# Evidencia 2026-09-25: video-maker-plan.yml define estos roles.
+# catalog.json solo enumera providers OMP, no prueba pares exactos.
+# Fuente complementaria: omp models xiaomi-token-plan-sgp --json --no-extensions
+# exit 0: provider xiaomi-token-plan-sgp, IDs mimo-v2.6-pro y mimo-v2.6-flash.
+# :high es nivel de razonamiento del rol, no parte del model ID.
+# Confirmar modelo/status line al arrancar; no aceptar fuzzy fallback.
+setupVersion: 2
+modelRoles:
+  commit: xiaomi-token-plan-sgp/mimo-v2.6-flash:high
+  smol: xiaomi-token-plan-sgp/mimo-v2.6-flash:high
+  tiny: xiaomi-token-plan-sgp/mimo-v2.6-flash:high
+  default: xiaomi-token-plan-sgp/mimo-v2.6-pro
+  slow: xiaomi-token-plan-sgp/mimo-v2.6-pro
+  plan: xiaomi-token-plan-sgp/mimo-v2.6-pro
+  advisor: xiaomi-token-plan-sgp/mimo-v2.6-pro

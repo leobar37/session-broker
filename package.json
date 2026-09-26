@@ -1,0 +1,29 @@
+{
+  "name": "omp-session-broker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:protocol": "bun test tests/protocol",
+    "test:broker": "bun test tests/broker",
+    "test:cli": "bun test tests/cli",
+    "test:omp": "bun test tests/omp",
+    "test:recovery": "bun test tests/recovery",
+    "test:handoff": "bun test tests/handoff",
+    "verify": "bun scripts/verify.ts"
+  },
+  "devDependencies": {
+    "@session-broker/cli": "workspace:*",
+    "@session-broker/client": "workspace:*",
+    "@session-broker/omp-adapter": "workspace:*",
+    "@session-broker/protocol": "workspace:*",
+    "@session-broker/server": "workspace:*",
+    "@types/bun": "^1.4.2",
+    "typescript": "^7.0.2"
+  }
+}

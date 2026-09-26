@@ -1,0 +1,128 @@
+{
+  "protocolVersion": "1.0.0",
+  "packages": [
+    {
+      "name": "@session-broker/protocol",
+      "version": "0.1.0",
+      "dir": "packages/protocol",
+      "exports": [".", "./fixtures", "./package.json"]
+    },
+    {
+      "name": "@session-broker/client",
+      "version": "0.1.0",
+      "dir": "packages/client",
+      "exports": ["."]
+    },
+    {
+      "name": "@session-broker/server",
+      "version": "0.1.0",
+      "dir": "apps/broker",
+      "exports": ["."]
+    },
+    {
+      "name": "@session-broker/cli",
+      "version": "0.1.0",
+      "dir": "apps/cli",
+      "exports": ["."]
+    },
+    {
+      "name": "@session-broker/omp-adapter",
+      "version": "0.1.0",
+      "dir": "packages/omp-adapter",
+      "exports": ["."]
+    }
+  ],
+  "errorCodes": [
+    { "code": "INVALID_INPUT", "terminal": true, "retrySafe": false, "exitCode": 2 },
+    { "code": "UNAUTHORIZED", "terminal": true, "retrySafe": false, "exitCode": 3 },
+    { "code": "NOT_FOUND_OR_FORBIDDEN", "terminal": true, "retrySafe": false, "exitCode": 4 },
+    { "code": "INCOMPATIBLE_VERSION", "terminal": true, "retrySafe": false, "exitCode": 5 },
+    { "code": "UNSUPPORTED_CAPABILITY", "terminal": true, "retrySafe": false, "exitCode": 6 },
+    { "code": "TARGET_OFFLINE", "terminal": false, "retrySafe": true, "exitCode": 7 },
+    { "code": "TARGET_BUSY", "terminal": false, "retrySafe": true, "exitCode": 8 },
+    { "code": "STALE_INSTANCE", "terminal": true, "retrySafe": false, "exitCode": 9 },
+    { "code": "STALE_CONTROL_EPOCH", "terminal": true, "retrySafe": false, "exitCode": 10 },
+    { "code": "PAYLOAD_CONFLICT", "terminal": true, "retrySafe": false, "exitCode": 11 },
+    { "code": "EXPIRED", "terminal": true, "retrySafe": false, "exitCode": 12 },
+    { "code": "RATE_LIMITED", "terminal": false, "retrySafe": true, "exitCode": 13 },
+    { "code": "QUEUE_FULL", "terminal": false, "retrySafe": true, "exitCode": 14 },
+    { "code": "CURSOR_EXPIRED", "terminal": true, "retrySafe": false, "exitCode": 15 },
+    { "code": "OUTCOME_UNKNOWN", "terminal": true, "retrySafe": false, "exitCode": 16 },
+    { "code": "AMBIGUOUS_TARGET", "terminal": true, "retrySafe": false, "exitCode": 17 }
+  ],
+  "exitCodes": {
+    "OK": 0,
+    "INTERNAL_ERROR": 1,
+    "INVALID_INPUT": 2,
+    "UNAUTHORIZED": 3,
+    "NOT_FOUND_OR_FORBIDDEN": 4,
+    "INCOMPATIBLE_VERSION": 5,
+    "UNSUPPORTED_CAPABILITY": 6,
+    "TARGET_OFFLINE": 7,
+    "TARGET_BUSY": 8,
+    "STALE_INSTANCE": 9,
+    "STALE_CONTROL_EPOCH": 10,
+    "PAYLOAD_CONFLICT": 11,
+    "EXPIRED": 12,
+    "RATE_LIMITED": 13,
+    "QUEUE_FULL": 14,
+    "CURSOR_EXPIRED": 15,
+    "OUTCOME_UNKNOWN": 16,
+    "AMBIGUOUS_TARGET": 17
+  },
+  "limits": {
+    "maxFrameBytes": 1048576,
+    "maxPayloadBytes": 524288,
+    "maxIdChars": 128,
+    "maxAliasChars": 128,
+    "maxHistoryPageItems": 200,
+    "maxHistoryPageBytes": 262144,
+    "maxEventQueueItemsPerSubscription": 1000,
+    "maxEventQueueBytesPerSubscription": 4194304,
+    "maxInFlightRequestsPerGrant": 32,
+    "maxQueuedAsksPerSession": 8,
+    "maxRequestsPerMinutePerGrant": 120,
+    "requestTimeoutMsDefault": 30000,
+    "requestTimeoutMsMax": 900000,
+    "askDeadlineMsDefault": 300000,
+    "askDeadlineMsMax": 3600000,
+    "grantTtlMsDefault": 86400000,
+    "grantTtlMsMax": 2592000000,
+    "rootProofTtlMsMax": 300000,
+    "challengeTtlMs": 300000,
+    "cursorTtlMs": 3600000,
+    "eventRetentionMs": 604800000,
+    "requestRetentionMs": 604800000,
+    "maxJournalBytesPerProject": 268435456,
+    "heartbeatMs": 30000,
+    "reconnectBackoffMsInitial": 500,
+    "reconnectBackoffMsMax": 60000,
+    "reconnectJitterRatio": 0.2
+  },
+  "capabilities": [
+    "session.identity",
+    "session.observe",
+    "session.prompt.when_idle",
+    "session.reply_tool",
+    "session.notify",
+    "session.control.prompt",
+    "session.control.steer",
+    "session.control.follow_up",
+    "session.control.abort",
+    "root.binding"
+  ],
+  "coreCapabilities": [
+    "session.identity",
+    "session.observe",
+    "session.prompt.when_idle",
+    "session.reply_tool",
+    "root.binding"
+  ],
+  "optionalCapabilities": [
+    "session.notify",
+    "session.control.prompt",
+    "session.control.steer",
+    "session.control.follow_up",
+    "session.control.abort"
+  ]
+}
