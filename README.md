@@ -1,5 +1,7 @@
 # session-broker
 
+[![verify](https://github.com/leobar37/session-broker/actions/workflows/verify.yml/badge.svg)](https://github.com/leobar37/session-broker/actions/workflows/verify.yml)
+
 **Broker de sesiones standalone para coordinar agentes de código (OMP) entre sí — con autenticación real, persistencia durable y recovery honesto.**
 
 - Versión de protocolo: `1.0.0` (congelada)
@@ -22,11 +24,14 @@
 9. [Durabilidad, dedup y recovery honesto](#durabilidad-dedup-y-recovery-honesto)
 10. [Backpressure y límites](#backpressure-y-límites)
 11. [Arranque rápido](#arranque-rápido)
-12. [Verificación reproducible](#verificación-reproducible)
-13. [Consumo local sin npm](#consumo-local-sin-npm)
-14. [Qué NO hace (gates)](#qué-no-hace-gates)
-15. [Estructura del repo](#estructura-del-repo)
-16. [Documentación completa](#documentación-completa)
+12. [Caso de uso: integrar una sesión OMP](#caso-de-uso-integrar-una-sesión-omp)
+13. [Pipeline CI](#pipeline-ci)
+14. [Verificación reproducible](#verificación-reproducible)
+15. [Consumo local sin npm](#consumo-local-sin-npm)
+16. [¿Y publicar a npm?](#y-publicar-a-npm)
+17. [Qué NO hace (gates)](#qué-no-hace-gates)
+18. [Estructura del repo](#estructura-del-repo)
+19. [Documentación completa](#documentación-completa)
 
 ---
 
@@ -310,6 +315,63 @@ o EnvironmentFile `600`, **nunca** en la línea de comandos).
 Los logs son JSON por línea con redacción por defecto: `credential`, `macKey`,
 `payload`, `question`, `result`, etc. se sustituyen por `[REDACTED]`.
 
+## Caso de uso: integrar una sesión OMP
+
+### ¿Hay un plugin instalable de OMP?
+
+**Todavía no — y conviene ser preciso.** Lo verificado y entregado es:
+
+- **`@session-broker/omp-adapter`**: la librería que vive *dentro* de una
+  sesión OMP (entrega when-idle, captura de `session_reply`, notificación de
+  `runState`, preservación de la TUI, journal de recibos).
+- **`OmpExtensionHost`**: el **puerto estructural** tipado contra la API
+  pública de OMP v18.3.1 — `on`, `registerTool`, `sendUserMessage`,
+  `getSessionId`, `isIdle`, `subscribeRunState`, etc. (mapeos verificados en
+  [`docs/compatibility/omp-api-matrix.md`](docs/compatibility/omp-api-matrix.md)).
+
+Lo que **no existe aún** es el *shim*: la extensión instalable que implemente
+ese puerto sobre un OMP vivo. Quedó declarado como integración futura en el
+handoff (verificaría contra un OMP real y exigiría abrir el gate de
+integración). Toda la evidencia corre contra `FakeOmpHost` + fake model.
+
+### El wiring (qué implementaría el shim)
+
+```ts
+import { createOmpAdapter, type OmpExtensionHost } from "@session-broker/omp-adapter";
+
+// 1. El shim futuro implementa el puerto con la ExtensionAPI real de OMP:
+const host: OmpExtensionHost = {
+  on: (event, handler) => extensionAPI.on(event, handler),              // lectura sin inferencia
+  registerTool: (tool) => extensionAPI.registerTool(tool),              // registra session_reply
+  sendUserMessage: (content, opts) => session.sendUserMessage(content, opts), // idle→turno · busy→followUp
+  getSessionId: () => sessionManager.getSessionId(),
+  isIdle: () => !session.isStreaming,
+  subscribeRunState: (listener) => session.subscribeRunState(listener),
+};
+
+// 2. El adaptador compone cliente broker + puertos + root proof:
+const adapter = createOmpAdapter({
+  endpoint: "ws://127.0.0.1:8791",
+  projectId, workspaceId, instanceId,
+  nativeSessionId: host.getSessionId(),
+  grantId, credential,             // credencial del config 600, jamás versionada
+  host,
+  macKey,                          // MAC key del config 600; jamás en CLI ni logs
+  dataDir,                         // user data dir, fuera del checkout
+  allowInsecureWs: true,           // política LOCAL explícita (solo loopback)
+});
+```
+
+Eso es todo el contrato: el adaptador no toca la TUI, no ejecuta inferencia y
+declara como `unsupported` lo que no tiene mapping verificado.
+
+## Pipeline CI
+
+GitHub Actions ejecuta el mismo `bun run verify` en cada push a `main` y PR
+(`.github/workflows/verify.yml`): `bun install --frozen-lockfile` +
+typecheck + 6 suites + barrido de teardown. Sin secretos, sin servicios, sin
+inferencia real — el smoke del consumidor corre offline con tarballs locales.
+
 ## Verificación reproducible
 
 ```sh
@@ -357,6 +419,29 @@ done
 incluida una **relocalización** a un segundo directorio — y afirma que el
 consumidor solo usa exports públicos, sin rutas absolutas de la máquina, sin
 red y sin secretos.
+
+## ¿Y publicar a npm?
+
+Este repo **no publica a npm por diseño** (el consumo local con tarballs es el
+camino verificado; sin dependencia de ningún registry). Publicar sería un
+**opt-in futuro del operador** — hoy no hay workflow de publish ni token
+configurado, a propósito.
+
+Si decidís abrir ese camino, el setup sería:
+
+1. **Token**: crear un *granular access token* con scope mínimo y expiración
+   corta en <https://docs.npmjs.com/creating-and-viewing-access-tokens>
+   (referencia general: <https://docs.npmjs.com/about-access-tokens>).
+2. **Secret de CI**: guardarlo como `NPM_TOKEN` en
+   *Settings → Secrets and variables → Actions*
+   (<https://docs.github.com/en/actions/security-guides/encrypted-secrets>).
+   El token **jamás** se versiona ni aparece en logs.
+3. **Publish**: `bun pm pack` por workspace + `npm publish` autenticado con
+   `NPM_TOKEN` — en un workflow separado, **manual** (`workflow_dispatch`),
+   nunca en el pipeline de verify.
+
+Mientras ese gate siga cerrado, el consumo local de
+[arriba](#consumo-local-sin-npm) es el camino soportado.
 
 ## Qué NO hace (gates)
 

@@ -1,0 +1,27 @@
+name: verify
+
+# Pipeline mínimo y honesto: typecheck + 6 suites aisladas + teardown.
+# Sin inferencia real (fake model), sin servicios, sin secretos.
+# El smoke del consumidor corre offline con tarballs locales (sin npm publish).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+
+      - name: Install dependencies (lockfile congelado)
+        run: bun install --frozen-lockfile
+
+      - name: Verify (typecheck + 6 suites + teardown sweep)
+        run: bun run verify

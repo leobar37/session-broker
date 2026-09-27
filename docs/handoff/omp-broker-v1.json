@@ -4,7 +4,7 @@
   "generatedFrom": {
     "evidenceSchema": "omp-session-broker-evidence/1",
     "stage": "final",
-    "evidenceDate": "2026-09-26T18:16:04Z",
+    "evidenceDate": "2026-09-27T01:07:56Z",
     "operator": "coordinator"
   },
   "identification": {
@@ -148,7 +148,7 @@
         ]
       }
     ],
-    "evidenceDate": "2026-09-26T18:16:04Z",
+    "evidenceDate": "2026-09-27T01:07:56Z",
     "origin": {
       "kind": "local-checkout",
       "npmPublished": false,
@@ -165,7 +165,7 @@
     },
     "sourceHash": {
       "algorithm": "sha256-canonical-file-manifest-v1",
-      "hash": "sha256:adcda6cfe725cd32b19a5f5ece8b5873cfbe4a2d097df4a205169c9674ca0c04",
+      "hash": "sha256:849572bbd430ae9929d903b8c197b0974f85adc08dc01b510db34ec82f033016",
       "fileCount": 120,
       "include": [
         "package.json, tsconfig.json, bun.lock (si existe) y README.md en la raíz",
@@ -471,7 +471,7 @@
     "notPerformed": [
       "G-BROKER-LIVE: no se ejecutó inferencia real ni se contactó proveedores (fake model en todas las suites)",
       "G-BROKER-SERVICE: no se instaló/habilitó/arrancó ningún servicio (fixtures y service manager fake)",
-      "En el momento del gate: sin commit ni publicación npm ni integración con el monorepo maestro (trazabilidad por source hash)"
+      "En el momento del gate: sin publicación npm ni integración con el monorepo maestro (trazabilidad por source hash)"
     ]
   },
   "limitations": [

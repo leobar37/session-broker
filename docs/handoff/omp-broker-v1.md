@@ -6,7 +6,7 @@
 
 - Schema del handoff: `omp-session-broker-handoff/1` (`omp-broker-v1`)
 - Stage de evidencia: `final` (pre-gate = resultados aún no observados marcados como pending; final = todo observado)
-- Fecha de evidencia: 2026-09-26T18:16:04Z
+- Fecha de evidencia: 2026-09-27T01:07:56Z
 - Generado desde evidencia: `omp-session-broker-evidence/1` (operador: coordinator)
 
 ## 1. Identificación
@@ -28,7 +28,7 @@
 - Repo Git inicializado SIN commits: no hay SHA que declarar y no se inventa. La trazabilidad se sostiene en el hash determinista del conjunto fuente (algoritmo y reglas incluidas abajo); un cambio de fuente tras generar el handoff invalida el hash y exige un nuevo gate.
 
 - Algoritmo del source hash: `sha256-canonical-file-manifest-v1`
-- Source hash: `sha256:adcda6cfe725cd32b19a5f5ece8b5873cfbe4a2d097df4a205169c9674ca0c04` (archivos incluidos: 120)
+- Source hash: `sha256:849572bbd430ae9929d903b8c197b0974f85adc08dc01b510db34ec82f033016` (archivos incluidos: 120)
 
 Reglas de inclusión del hash:
 - package.json, tsconfig.json, bun.lock (si existe) y README.md en la raíz
@@ -162,7 +162,7 @@ Bundle hash (mismos artefactos de la sección 3):
 Evidencia NO realizada (enumerada honestamente):
 - G-BROKER-LIVE: no se ejecutó inferencia real ni se contactó proveedores (fake model en todas las suites)
 - G-BROKER-SERVICE: no se instaló/habilitó/arrancó ningún servicio (fixtures y service manager fake)
-- En el momento del gate: sin commit ni publicación npm ni integración con el monorepo maestro (trazabilidad por source hash)
+- En el momento del gate: sin publicación npm ni integración con el monorepo maestro (trazabilidad por source hash)
 
 ## 7. Trazabilidad requisitos → suite → resultado
 
